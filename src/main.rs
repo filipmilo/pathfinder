@@ -6,15 +6,15 @@ use std::rc::Rc;
 
 type NodeRef = Rc<RefCell<Node>>;
 
+#[derive(PartialEq, Debug)]
 struct Node {
     name: String,
     neighbours: Vec<(NodeRef, i32)>,
 }
 
 use std::cmp::min;
-use std::usize;
 
-fn held_karp(dist: &Vec<Vec<usize>>) -> usize {
+fn held_karp(dist: &Vec<Vec<i32>>) -> i32 {
     let n = dist.len();
     let size = 1 << n;
 
@@ -32,7 +32,10 @@ fn held_karp(dist: &Vec<Vec<usize>>) -> usize {
                     continue;
                 }
                 let next_mask = mask | (1 << v);
-                dp[next_mask][v] = min(dp[next_mask][v], dp[mask][u].saturating_add(dist[u][v]));
+                dp[next_mask][v] = min(
+                    dp[next_mask][v],
+                    dp[mask][u].saturating_add(dist[u][v] as usize),
+                );
             }
         }
     }
@@ -41,10 +44,10 @@ fn held_karp(dist: &Vec<Vec<usize>>) -> usize {
     let full_mask = (1 << n) - 1;
     let mut result = usize::MAX;
     for u in 1..n {
-        result = min(result, dp[full_mask][u].saturating_add(dist[u][0]));
+        result = min(result, dp[full_mask][u].saturating_add(dist[u][0] as usize));
     }
 
-    result
+    result as i32
 }
 
 fn main() {
@@ -68,7 +71,7 @@ fn main() {
                     })))
                     .clone();
 
-                acc.entry(curr.to_owned())
+                acc.entry(begin.clone())
                     .and_modify(|node| node.borrow_mut().neighbours.push((end_node, cost)))
                     .or_insert(Rc::new(RefCell::new(Node {
                         name: begin,
@@ -80,7 +83,28 @@ fn main() {
         );
 
     let len = nodes.len();
-    let matrix: Vec<Vec<i32>> = (0..len).map(|_| vec![0; len]).collect();
+    let mut matrix: Vec<Vec<i32>> = (0..len).map(|_| vec![0; len]).collect();
 
-    // TODO: Populate matrix
+    let values = nodes.values().collect::<Vec<&NodeRef>>();
+
+    for (i, &curr) in values.iter().enumerate() {
+        for (j, &target) in values.iter().enumerate() {
+            if j == i {
+                continue;
+            }
+
+            if let Some(found) = curr
+                .borrow()
+                .neighbours
+                .iter()
+                .find_map(|n| if n.0 == (*target) { Some(n.1) } else { None })
+            {
+                matrix[i][j] = found;
+            }
+        }
+    }
+
+    held_karp(&matrix);
+
+    println!("{}", held_karp(&matrix));
 }
