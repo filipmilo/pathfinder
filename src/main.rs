@@ -14,7 +14,7 @@ struct Node {
 
 use std::cmp::min;
 
-fn held_karp(dist: &Vec<Vec<i32>>) -> i32 {
+fn held_karp(dist: &[Vec<i32>]) -> i32 {
     let n = dist.len();
     let size = 1 << n;
 
@@ -43,6 +43,7 @@ fn held_karp(dist: &Vec<Vec<i32>>) -> i32 {
     // Return to start city (0)
     let full_mask = (1 << n) - 1;
     let mut result = usize::MAX;
+
     for u in 1..n {
         result = min(result, dp[full_mask][u].saturating_add(dist[u][0] as usize));
     }
@@ -83,7 +84,7 @@ fn main() {
         );
 
     let len = nodes.len();
-    let mut matrix: Vec<Vec<i32>> = (0..len).map(|_| vec![0; len]).collect();
+    let mut matrix: Vec<Vec<i32>> = (0..len).map(|_| vec![i32::MAX; len]).collect();
 
     let values = nodes.values().collect::<Vec<&NodeRef>>();
 
@@ -103,8 +104,6 @@ fn main() {
             }
         }
     }
-
-    held_karp(&matrix);
 
     println!("{}", held_karp(&matrix));
 }
