@@ -4,18 +4,13 @@ use std::fs;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use node::{Node, NodeRef};
+
 mod graph;
+mod node;
 
-type NodeRef = Rc<RefCell<Node>>;
-
-#[derive(PartialEq, Debug)]
-struct Node {
-    name: String,
-    neighbours: Vec<(NodeRef, u32)>,
-}
-
-fn load_input() -> Vec<Vec<u32>> {
-    let nodes = fs::read_to_string("data/input.txt")
+fn load_input() -> (Vec<Vec<u32>>, Vec<NodeRef>) {
+    let nodes = fs::read_to_string("data/basic.txt")
         .expect("Oops, could not open file.")
         .lines()
         .fold(
@@ -49,10 +44,10 @@ fn load_input() -> Vec<Vec<u32>> {
     let len = nodes.len();
     let mut matrix: Vec<Vec<u32>> = (0..len).map(|_| vec![u32::MAX; len]).collect();
 
-    let values = nodes.values().collect::<Vec<&NodeRef>>();
+    let values = nodes.into_values().collect::<Vec<NodeRef>>();
 
-    for (i, &curr) in values.iter().enumerate() {
-        for (j, &target) in values.iter().enumerate() {
+    for (i, curr) in values.iter().enumerate() {
+        for (j, target) in values.iter().enumerate() {
             if j == i {
                 continue;
             }
@@ -68,11 +63,13 @@ fn load_input() -> Vec<Vec<u32>> {
         }
     }
 
-    matrix
+    (matrix, values)
 }
 
 fn main() {
-    let graph = graph::Graph::new(load_input());
+    let (matrix, values) = load_input();
+
+    let graph = graph::Graph::new(matrix, values);
 
     println!("{}", graph.sequential_held_karp());
 }

@@ -1,12 +1,15 @@
 use std::cmp::min;
 
+use crate::node::NodeRef;
+
 pub struct Graph {
     matrix: Vec<Vec<u32>>,
+    values: Vec<NodeRef>,
 }
 
 impl Graph {
-    pub fn new(matrix: Vec<Vec<u32>>) -> Graph {
-        Graph { matrix }
+    pub fn new(matrix: Vec<Vec<u32>>, values: Vec<NodeRef>) -> Graph {
+        Graph { matrix, values }
     }
 
     pub fn sequential_held_karp(&self) -> u32 {
@@ -17,7 +20,11 @@ impl Graph {
         dp[1][0] = 0;
 
         for mask in 0..size {
+            println!("{}", mask);
+            println!("{:?}", dp);
+
             for u in 0..n {
+                println!("{}", mask & (1 << u));
                 if (mask & (1 << u)) == 0 {
                     continue;
                 }
