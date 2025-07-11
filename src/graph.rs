@@ -24,7 +24,6 @@ impl Graph {
             println!("{:?}", dp);
 
             for u in 0..n {
-                println!("{}", mask & (1 << u));
                 if (mask & (1 << u)) == 0 {
                     continue;
                 }

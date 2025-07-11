@@ -1,10 +1,46 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
+use eframe::{App, CreationContext, NativeOptions, run_native};
+use egui_graphs::Graph;
 use node::Node;
+use petgraph::stable_graph::StableGraph;
 
 mod graph;
 mod node;
+
+pub struct Pathfinder {
+    g: Graph,
+}
+
+impl Pathfinder {
+    fn new(_: &CreationContext<'_>) -> Self {
+        let g = generate_graph();
+        Self { g: Graph::from(&g) }
+    }
+}
+
+impl App for Pathfinder {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add(&mut egui_graphs::GraphView::new(&mut self.g));
+        });
+    }
+}
+
+fn generate_graph() -> StableGraph<(), ()> {
+    let mut g = StableGraph::new();
+
+    let a = g.add_node(());
+    let b = g.add_node(());
+    let c = g.add_node(());
+
+    g.add_edge(a, b, ());
+    g.add_edge(b, c, ());
+    g.add_edge(c, a, ());
+
+    g
+}
 
 fn load_input() -> (Vec<Vec<u32>>, Vec<Node>) {
     let lines = fs::read_to_string("data/basic.txt")
@@ -75,6 +111,13 @@ fn main() {
     let (matrix, values) = load_input();
 
     let graph = graph::Graph::new(matrix, values);
+
+    run_native(
+        "Pathfinder",
+        NativeOptions::default(),
+        Box::new(|cc| Ok(Box::new(Pathfinder::new(cc)))),
+    )
+    .unwrap();
 
     println!("{}", graph.sequential_held_karp());
 }
