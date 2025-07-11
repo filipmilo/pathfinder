@@ -4,4 +4,4 @@ Paris,France,Vienna,Austria,1200
 Berlin,Germany,Prague,Czech Republic,350
 Berlin,Germany,Vienna,Austria,530
 Prague,Czech Republic,Vienna,Austria,250
-Vienna,Austria,Geneva,Switzerland,243
+Vienna,Austria,Paris,France,243

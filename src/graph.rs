@@ -1,14 +1,14 @@
 use std::cmp::min;
 
-use crate::node::NodeRef;
+use crate::node::Node;
 
 pub struct Graph {
     matrix: Vec<Vec<u32>>,
-    values: Vec<NodeRef>,
+    values: Vec<Node>,
 }
 
 impl Graph {
-    pub fn new(matrix: Vec<Vec<u32>>, values: Vec<NodeRef>) -> Graph {
+    pub fn new(matrix: Vec<Vec<u32>>, values: Vec<Node>) -> Graph {
         Graph { matrix, values }
     }
 

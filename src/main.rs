@@ -1,64 +1,69 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use node::{Node, NodeRef};
+use node::Node;
 
 mod graph;
 mod node;
 
-fn load_input() -> (Vec<Vec<u32>>, Vec<NodeRef>) {
-    let nodes = fs::read_to_string("data/basic.txt")
+fn load_input() -> (Vec<Vec<u32>>, Vec<Node>) {
+    let lines = fs::read_to_string("data/basic.txt")
         .expect("Oops, could not open file.")
         .lines()
-        .fold(
-            HashMap::new(),
-            |mut acc, curr| -> HashMap<String, NodeRef> {
-                let parsed = curr.split(",").collect::<Vec<&str>>();
+        .map(|line| {
+            let parsed = line.split(",").collect::<Vec<&str>>();
 
-                let begin = parsed[0].to_owned() + parsed[1];
-                let end = parsed[2].to_owned() + parsed[3];
-                let cost = parsed[4].parse::<u32>().unwrap();
+            (
+                parsed[0].to_owned() + parsed[1],
+                parsed[2].to_owned() + parsed[3],
+                parsed[4].parse::<u32>().unwrap(),
+            )
+        })
+        .collect::<Vec<(String, String, u32)>>();
 
-                let end_node = acc
-                    .entry(end.clone())
-                    .or_insert(Rc::new(RefCell::new(Node {
-                        name: end,
-                        neighbours: vec![],
-                    })))
-                    .clone();
+    let ids = lines
+        .iter()
+        .flat_map(|line| [line.0.clone(), line.1.clone()])
+        .collect::<HashSet<String>>()
+        .into_iter()
+        .collect::<Vec<String>>();
 
-                acc.entry(begin.clone())
-                    .and_modify(|node| node.borrow_mut().neighbours.push((end_node, cost)))
-                    .or_insert(Rc::new(RefCell::new(Node {
-                        name: begin,
-                        neighbours: vec![],
-                    })));
+    let nodes = lines
+        .iter()
+        .fold(HashMap::new(), |mut acc, curr| -> HashMap<usize, Node> {
+            let curr_id = ids.iter().position(|name| *name == curr.0).unwrap();
+            let end_id = ids.iter().position(|name| *name == curr.1).unwrap();
 
-                acc
-            },
-        );
+            acc.entry(curr_id)
+                .and_modify(|node| node.neighbours.push((end_id, curr.2)))
+                .or_insert(Node {
+                    id: curr_id,
+                    name: curr.0.clone(),
+                    neighbours: vec![],
+                });
 
-    let len = nodes.len();
+            acc
+        });
+
+    let len = ids.len();
     let mut matrix: Vec<Vec<u32>> = (0..len).map(|_| vec![u32::MAX; len]).collect();
 
-    let values = nodes.into_values().collect::<Vec<NodeRef>>();
+    let values = nodes.into_values().collect::<Vec<Node>>();
 
-    for (i, curr) in values.iter().enumerate() {
-        for (j, target) in values.iter().enumerate() {
+    for (i, column) in matrix.iter_mut().enumerate() {
+        for (j, val) in column.iter_mut().enumerate() {
             if j == i {
                 continue;
             }
 
-            if let Some(found) = curr
-                .borrow()
-                .neighbours
-                .iter()
-                .find_map(|n| if n.0 == (*target) { Some(n.1) } else { None })
-            {
-                matrix[i][j] = found;
+            if let Some(begin) = values.iter().find(|node| node.id == j) {
+                if let Some(found) = begin
+                    .neighbours
+                    .iter()
+                    .find_map(|n| if n.0 == i { Some(n.1) } else { None })
+                {
+                    *val = found;
+                }
             }
         }
     }

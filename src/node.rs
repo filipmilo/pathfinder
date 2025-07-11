@@ -1,9 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
-
-pub type NodeRef = Rc<RefCell<Node>>;
-
 #[derive(PartialEq, Debug)]
 pub struct Node {
+    pub id: usize,
     pub name: String,
-    pub neighbours: Vec<(NodeRef, u32)>,
+    pub neighbours: Vec<(usize, u32)>,
 }
