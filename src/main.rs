@@ -9,12 +9,12 @@ type NodeRef = Rc<RefCell<Node>>;
 #[derive(PartialEq, Debug)]
 struct Node {
     name: String,
-    neighbours: Vec<(NodeRef, i32)>,
+    neighbours: Vec<(NodeRef, u32)>,
 }
 
 use std::cmp::min;
 
-fn held_karp(dist: &[Vec<i32>]) -> i32 {
+fn held_karp(dist: &[Vec<u32>]) -> u32 {
     let n = dist.len();
     let size = 1 << n;
 
@@ -44,11 +44,13 @@ fn held_karp(dist: &[Vec<i32>]) -> i32 {
     let full_mask = (1 << n) - 1;
     let mut result = usize::MAX;
 
+    println!("{:?}", dp[full_mask]);
+
     for u in 1..n {
         result = min(result, dp[full_mask][u].saturating_add(dist[u][0] as usize));
     }
 
-    result as i32
+    result as u32
 }
 
 fn main() {
@@ -62,7 +64,7 @@ fn main() {
 
                 let begin = parsed[0].to_owned() + parsed[1];
                 let end = parsed[2].to_owned() + parsed[3];
-                let cost = parsed[4].parse::<i32>().unwrap();
+                let cost = parsed[4].parse::<u32>().unwrap();
 
                 let end_node = acc
                     .entry(end.clone())
@@ -84,7 +86,7 @@ fn main() {
         );
 
     let len = nodes.len();
-    let mut matrix: Vec<Vec<i32>> = (0..len).map(|_| vec![i32::MAX; len]).collect();
+    let mut matrix: Vec<Vec<u32>> = (0..len).map(|_| vec![u32::MAX; len]).collect();
 
     let values = nodes.values().collect::<Vec<&NodeRef>>();
 
