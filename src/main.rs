@@ -3,28 +3,36 @@ use std::fs;
 
 use eframe::{App, CreationContext, NativeOptions, run_native};
 use egui_graphs::{
-    Graph, LayoutHierarchical, LayoutRandom, LayoutStateHierarchical, LayoutStateRandom,
-    SettingsInteraction, SettingsNavigation, SettingsStyle,
+    Graph, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation, SettingsStyle,
 };
 use node::Node;
 use petgraph::Directed;
-use petgraph::graph::NodeIndex;
+use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::stable_graph::StableGraph;
+use solver::Solver;
 
-mod graph;
 mod node;
+mod solver;
+
+type GraphTuple = (
+    StableGraph<String, ()>,
+    Vec<Vec<u32>>,
+    HashMap<NodeIndex, Node>,
+);
 
 pub struct Pathfinder {
-    g: Graph<String, u32, Directed>,
+    g: Graph<String, (), Directed>,
+    nodes: HashMap<NodeIndex, Node>,
+    solver: Solver,
 }
 
 impl Pathfinder {
     fn new(_: &CreationContext<'_>) -> Self {
-        let (graph, _matrix, values) = load_graph();
+        let (graph, matrix, nodes) = load_graph();
 
         let mut g = Graph::from(&graph);
 
-        values.iter().for_each(|node| {
+        nodes.values().for_each(|node| {
             g.node_mut(node.id).unwrap().set_label(node.name.clone());
 
             node.neighbours.iter().for_each(|edge| {
@@ -34,12 +42,44 @@ impl Pathfinder {
             });
         });
 
-        Self { g }
+        Self {
+            g,
+            nodes,
+            solver: Solver::new(matrix),
+        }
+    }
+
+    fn solve(&mut self) {
+        let (_cost, path) = self.solver.sequential_held_karp();
+
+        path.windows(2)
+            .flat_map(|pair| {
+                self.nodes
+                    .get(&NodeIndex::new(pair[0]))
+                    .unwrap()
+                    .get_edge_idxs(&[pair[1]])
+            })
+            .for_each(|edge| {
+                let _ = self.g.remove_edge(edge);
+            });
     }
 }
 
 impl App for Pathfinder {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        egui::SidePanel::right("left_panel")
+            .min_width(250.)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Solve");
+                        if ui.button("Solve Held-Karp").clicked() {
+                            self.solve();
+                        };
+                    });
+                });
+            });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             let interaction_settings = &SettingsInteraction::new()
                 .with_dragging_enabled(true)
@@ -73,7 +113,7 @@ impl App for Pathfinder {
     }
 }
 
-fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
+fn load_graph() -> GraphTuple {
     let lines = fs::read_to_string("data/basic.txt")
         .expect("Oops, could not open file.")
         .lines()
@@ -88,7 +128,7 @@ fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
         })
         .collect::<Vec<(String, String, u32)>>();
 
-    let mut graph: StableGraph<String, u32> = StableGraph::new();
+    let mut graph: StableGraph<String, ()> = StableGraph::new();
 
     let ids = lines
         .iter()
@@ -104,7 +144,7 @@ fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
         node_map.insert(city.clone(), idx);
     });
 
-    let nodes = lines.iter().fold(
+    let mut nodes = lines.iter().fold(
         HashMap::new(),
         |mut acc, curr| -> HashMap<NodeIndex, Node> {
             let curr_id = *node_map.get(&curr.0).unwrap();
@@ -125,17 +165,15 @@ fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
     let len = ids.len();
     let mut matrix: Vec<Vec<u32>> = (0..len).map(|_| vec![u32::MAX; len]).collect();
 
-    let mut values = nodes.into_values().collect::<Vec<Node>>();
-
     for (i, column) in matrix.iter_mut().enumerate() {
         for (j, val) in column.iter_mut().enumerate() {
             if j == i {
                 continue;
             }
 
-            if let Some(begin) = values.iter_mut().find(|node| node.id.index() == j) {
-                if let Some(found) = begin.neighbours.iter_mut().find(|n| n.0.index() == i) {
-                    let edge_idx = graph.add_edge(begin.id, found.0, found.1);
+            if let Some(begin) = nodes.get_mut(&NodeIndex::new(i)) {
+                if let Some(found) = begin.neighbours.iter_mut().find(|n| n.0.index() == j) {
+                    let edge_idx = graph.add_edge(begin.id, found.0, ());
 
                     found.2 = Some(edge_idx);
 
@@ -145,7 +183,7 @@ fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
         }
     }
 
-    (graph, matrix, values)
+    (graph, matrix, nodes)
 }
 
 fn main() {
