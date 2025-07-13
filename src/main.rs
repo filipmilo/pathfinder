@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use eframe::{App, CreationContext, NativeOptions, run_native};
-use egui_graphs::Graph;
+use egui_graphs::{
+    DefaultGraphView, Graph, LayoutHierarchical, LayoutStateHierarchical, SettingsInteraction,
+    SettingsNavigation, SettingsStyle,
+};
 use node::Node;
 use petgraph::Directed;
 use petgraph::graph::NodeIndex;
@@ -27,9 +30,34 @@ impl Pathfinder {
 impl App for Pathfinder {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add(&mut egui_graphs::GraphView::<_, _, _, _, _, _>::new(
-                &mut self.g,
-            ));
+            let interaction_settings = &SettingsInteraction::new()
+                .with_dragging_enabled(true)
+                .with_node_clicking_enabled(true)
+                .with_node_selection_enabled(true)
+                .with_node_selection_multi_enabled(true)
+                .with_edge_clicking_enabled(true)
+                .with_edge_selection_enabled(true)
+                .with_edge_selection_multi_enabled(true);
+            let style_settings = &SettingsStyle::new().with_labels_always(true);
+            let navigation_settings = &SettingsNavigation::new()
+                .with_fit_to_screen_enabled(false)
+                .with_zoom_and_pan_enabled(true);
+
+            ui.add(
+                &mut egui_graphs::GraphView::<
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    LayoutStateHierarchical,
+                    LayoutHierarchical,
+                >::new(&mut self.g)
+                .with_styles(style_settings)
+                .with_interactions(interaction_settings)
+                .with_navigations(navigation_settings),
+            );
         });
     }
 }
