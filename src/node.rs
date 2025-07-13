@@ -1,6 +1,8 @@
+use petgraph::graph::NodeIndex;
+
 #[derive(PartialEq, Debug)]
 pub struct Node {
-    pub id: usize,
+    pub id: NodeIndex,
     pub name: String,
-    pub neighbours: Vec<(usize, u32)>,
+    pub neighbours: Vec<(NodeIndex, u32)>,
 }

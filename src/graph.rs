@@ -4,12 +4,11 @@ use crate::node::Node;
 
 pub struct Graph {
     matrix: Vec<Vec<u32>>,
-    values: Vec<Node>,
 }
 
 impl Graph {
-    pub fn new(matrix: Vec<Vec<u32>>, values: Vec<Node>) -> Graph {
-        Graph { matrix, values }
+    pub fn new(matrix: Vec<Vec<u32>>) -> Graph {
+        Graph { matrix }
     }
 
     pub fn sequential_held_karp(&self) -> u32 {

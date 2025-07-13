@@ -5,19 +5,22 @@ use eframe::{App, CreationContext, NativeOptions, run_native};
 use egui_graphs::Graph;
 use node::Node;
 use petgraph::Directed;
+use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 
 mod graph;
 mod node;
 
 pub struct Pathfinder {
-    g: Graph<(), u32, Directed>,
+    g: Graph<String, u32, Directed>,
 }
 
 impl Pathfinder {
     fn new(_: &CreationContext<'_>) -> Self {
-        let g = generate_graph();
-        Self { g: Graph::from(&g) }
+        let (graph, _matrix, _values) = load_graph();
+        Self {
+            g: Graph::from(&graph),
+        }
     }
 }
 
@@ -31,34 +34,24 @@ impl App for Pathfinder {
     }
 }
 
-fn generate_graph() -> StableGraph<(), u32, Directed> {
-    let mut g = StableGraph::new();
-
-    let a = g.add_node(());
-    let b = g.add_node(());
-    let c = g.add_node(());
-
-    g.add_edge(a, b, 32);
-    g.add_edge(b, c, 13);
-    g.add_edge(c, a, 24);
-
-    g
-}
-
-fn load_input() -> (Vec<Vec<u32>>, Vec<Node>) {
-    let lines = fs::read_to_string("data/basic.txt")
+fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
+    let lines = fs::read_to_string("data/input.txt")
         .expect("Oops, could not open file.")
         .lines()
         .map(|line| {
             let parsed = line.split(",").collect::<Vec<&str>>();
 
             (
-                parsed[0].to_owned() + parsed[1],
-                parsed[2].to_owned() + parsed[3],
+                parsed[0].to_owned() + ", " + parsed[1],
+                parsed[2].to_owned() + ", " + parsed[3],
                 parsed[4].parse::<u32>().unwrap(),
             )
         })
         .collect::<Vec<(String, String, u32)>>();
+
+    let mut graph: StableGraph<String, u32> = StableGraph::new();
+
+    let mut node_map: HashMap<String, NodeIndex> = HashMap::new();
 
     let ids = lines
         .iter()
@@ -67,11 +60,16 @@ fn load_input() -> (Vec<Vec<u32>>, Vec<Node>) {
         .into_iter()
         .collect::<Vec<String>>();
 
-    let nodes = lines
-        .iter()
-        .fold(HashMap::new(), |mut acc, curr| -> HashMap<usize, Node> {
-            let curr_id = ids.iter().position(|name| *name == curr.0).unwrap();
-            let end_id = ids.iter().position(|name| *name == curr.1).unwrap();
+    ids.iter().for_each(|city| {
+        let idx = graph.add_node(city.clone());
+        node_map.insert(city.clone(), idx);
+    });
+
+    let nodes = lines.iter().fold(
+        HashMap::new(),
+        |mut acc, curr| -> HashMap<NodeIndex, Node> {
+            let curr_id = *node_map.get(&curr.0).unwrap();
+            let end_id = *node_map.get(&curr.1).unwrap();
 
             acc.entry(curr_id)
                 .and_modify(|node| node.neighbours.push((end_id, curr.2)))
@@ -82,7 +80,8 @@ fn load_input() -> (Vec<Vec<u32>>, Vec<Node>) {
                 });
 
             acc
-        });
+        },
+    );
 
     let len = ids.len();
     let mut matrix: Vec<Vec<u32>> = (0..len).map(|_| vec![u32::MAX; len]).collect();
@@ -95,32 +94,23 @@ fn load_input() -> (Vec<Vec<u32>>, Vec<Node>) {
                 continue;
             }
 
-            if let Some(begin) = values.iter().find(|node| node.id == j) {
-                if let Some(found) = begin
-                    .neighbours
-                    .iter()
-                    .find_map(|n| if n.0 == i { Some(n.1) } else { None })
-                {
-                    *val = found;
+            if let Some(begin) = values.iter().find(|node| node.id.index() == j) {
+                if let Some(found) = begin.neighbours.iter().find(|n| n.0.index() == i) {
+                    graph.add_edge(begin.id, found.0, found.1);
+                    *val = found.1;
                 }
             }
         }
     }
 
-    (matrix, values)
+    (graph, matrix, values)
 }
 
 fn main() {
-    let (matrix, values) = load_input();
-
-    let graph = graph::Graph::new(matrix, values);
-
     run_native(
         "Pathfinder",
         NativeOptions::default(),
         Box::new(|cc| Ok(Box::new(Pathfinder::new(cc)))),
     )
     .unwrap();
-
-    println!("{}", graph.sequential_held_karp());
 }
