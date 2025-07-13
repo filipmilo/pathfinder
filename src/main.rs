@@ -4,13 +4,14 @@ use std::fs;
 use eframe::{App, CreationContext, NativeOptions, run_native};
 use egui_graphs::Graph;
 use node::Node;
+use petgraph::Directed;
 use petgraph::stable_graph::StableGraph;
 
 mod graph;
 mod node;
 
 pub struct Pathfinder {
-    g: Graph,
+    g: Graph<(), u32, Directed>,
 }
 
 impl Pathfinder {
@@ -23,21 +24,23 @@ impl Pathfinder {
 impl App for Pathfinder {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add(&mut egui_graphs::GraphView::new(&mut self.g));
+            ui.add(&mut egui_graphs::GraphView::<_, _, _, _, _, _>::new(
+                &mut self.g,
+            ));
         });
     }
 }
 
-fn generate_graph() -> StableGraph<(), ()> {
+fn generate_graph() -> StableGraph<(), u32, Directed> {
     let mut g = StableGraph::new();
 
     let a = g.add_node(());
     let b = g.add_node(());
     let c = g.add_node(());
 
-    g.add_edge(a, b, ());
-    g.add_edge(b, c, ());
-    g.add_edge(c, a, ());
+    g.add_edge(a, b, 32);
+    g.add_edge(b, c, 13);
+    g.add_edge(c, a, 24);
 
     g
 }
