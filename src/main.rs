@@ -3,8 +3,8 @@ use std::fs;
 
 use eframe::{App, CreationContext, NativeOptions, run_native};
 use egui_graphs::{
-    DefaultGraphView, Graph, LayoutHierarchical, LayoutStateHierarchical, SettingsInteraction,
-    SettingsNavigation, SettingsStyle,
+    Graph, LayoutHierarchical, LayoutRandom, LayoutStateHierarchical, LayoutStateRandom,
+    SettingsInteraction, SettingsNavigation, SettingsStyle,
 };
 use node::Node;
 use petgraph::Directed;
@@ -20,10 +20,21 @@ pub struct Pathfinder {
 
 impl Pathfinder {
     fn new(_: &CreationContext<'_>) -> Self {
-        let (graph, _matrix, _values) = load_graph();
-        Self {
-            g: Graph::from(&graph),
-        }
+        let (graph, _matrix, values) = load_graph();
+
+        let mut g = Graph::from(&graph);
+
+        values.iter().for_each(|node| {
+            g.node_mut(node.id).unwrap().set_label(node.name.clone());
+
+            node.neighbours.iter().for_each(|edge| {
+                g.edge_mut(edge.2.unwrap())
+                    .unwrap()
+                    .set_label(edge.1.to_string())
+            });
+        });
+
+        Self { g }
     }
 }
 
@@ -51,8 +62,8 @@ impl App for Pathfinder {
                     _,
                     _,
                     _,
-                    LayoutStateHierarchical,
-                    LayoutHierarchical,
+                    LayoutStateRandom,
+                    LayoutRandom,
                 >::new(&mut self.g)
                 .with_styles(style_settings)
                 .with_interactions(interaction_settings)
@@ -63,7 +74,7 @@ impl App for Pathfinder {
 }
 
 fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
-    let lines = fs::read_to_string("data/input.txt")
+    let lines = fs::read_to_string("data/basic.txt")
         .expect("Oops, could not open file.")
         .lines()
         .map(|line| {
@@ -79,14 +90,14 @@ fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
 
     let mut graph: StableGraph<String, u32> = StableGraph::new();
 
-    let mut node_map: HashMap<String, NodeIndex> = HashMap::new();
-
     let ids = lines
         .iter()
         .flat_map(|line| [line.0.clone(), line.1.clone()])
         .collect::<HashSet<String>>()
         .into_iter()
         .collect::<Vec<String>>();
+
+    let mut node_map: HashMap<String, NodeIndex> = HashMap::new();
 
     ids.iter().for_each(|city| {
         let idx = graph.add_node(city.clone());
@@ -100,11 +111,11 @@ fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
             let end_id = *node_map.get(&curr.1).unwrap();
 
             acc.entry(curr_id)
-                .and_modify(|node| node.neighbours.push((end_id, curr.2)))
+                .and_modify(|node| node.neighbours.push((end_id, curr.2, None)))
                 .or_insert(Node {
                     id: curr_id,
                     name: curr.0.clone(),
-                    neighbours: vec![],
+                    neighbours: vec![(end_id, curr.2, None)],
                 });
 
             acc
@@ -114,7 +125,7 @@ fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
     let len = ids.len();
     let mut matrix: Vec<Vec<u32>> = (0..len).map(|_| vec![u32::MAX; len]).collect();
 
-    let values = nodes.into_values().collect::<Vec<Node>>();
+    let mut values = nodes.into_values().collect::<Vec<Node>>();
 
     for (i, column) in matrix.iter_mut().enumerate() {
         for (j, val) in column.iter_mut().enumerate() {
@@ -122,9 +133,12 @@ fn load_graph() -> (StableGraph<String, u32>, Vec<Vec<u32>>, Vec<Node>) {
                 continue;
             }
 
-            if let Some(begin) = values.iter().find(|node| node.id.index() == j) {
-                if let Some(found) = begin.neighbours.iter().find(|n| n.0.index() == i) {
-                    graph.add_edge(begin.id, found.0, found.1);
+            if let Some(begin) = values.iter_mut().find(|node| node.id.index() == j) {
+                if let Some(found) = begin.neighbours.iter_mut().find(|n| n.0.index() == i) {
+                    let edge_idx = graph.add_edge(begin.id, found.0, found.1);
+
+                    found.2 = Some(edge_idx);
+
                     *val = found.1;
                 }
             }
