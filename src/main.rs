@@ -54,10 +54,11 @@ impl Pathfinder {
 
         path.windows(2)
             .flat_map(|pair| {
-                self.nodes
-                    .get(&NodeIndex::new(pair[0]))
-                    .unwrap()
-                    .get_edge_idxs(&[pair[1]])
+                if let Some(val) = self.nodes.get(&NodeIndex::new(pair[0])) {
+                    val.get_edge_idxs(&[pair[1]])
+                } else {
+                    vec![]
+                }
             })
             .for_each(|edge| {
                 let _ = self.g.remove_edge(edge);
@@ -114,7 +115,7 @@ impl App for Pathfinder {
 }
 
 fn load_graph() -> GraphTuple {
-    let lines = fs::read_to_string("data/basic.txt")
+    let lines = fs::read_to_string("data/input.txt")
         .expect("Oops, could not open file.")
         .lines()
         .map(|line| {
@@ -149,6 +150,12 @@ fn load_graph() -> GraphTuple {
         |mut acc, curr| -> HashMap<NodeIndex, Node> {
             let curr_id = *node_map.get(&curr.0).unwrap();
             let end_id = *node_map.get(&curr.1).unwrap();
+
+            acc.entry(end_id).or_insert(Node {
+                id: end_id,
+                name: curr.1.clone(),
+                neighbours: vec![],
+            });
 
             acc.entry(curr_id)
                 .and_modify(|node| node.neighbours.push((end_id, curr.2, None)))
