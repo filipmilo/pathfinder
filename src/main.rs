@@ -7,9 +7,9 @@ use egui_graphs::{
 };
 use node::Node;
 use petgraph::Directed;
-use petgraph::graph::{EdgeIndex, NodeIndex};
+use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
-use solver::Solver;
+use solver::{GeneticAlgorithm, Solver};
 
 mod node;
 mod solver;
@@ -19,6 +19,11 @@ type GraphTuple = (
     Vec<Vec<u32>>,
     HashMap<NodeIndex, Node>,
 );
+
+enum SolutionStrategy {
+    HeldKarp,
+    GeneticAlgorithm,
+}
 
 pub struct Pathfinder {
     g: Graph<String, (), Directed>,
@@ -49,8 +54,11 @@ impl Pathfinder {
         }
     }
 
-    fn solve(&mut self) {
-        let (_cost, path) = self.solver.sequential_held_karp();
+    fn solve(&mut self, strategy: SolutionStrategy) {
+        let (_cost, path) = match strategy {
+            SolutionStrategy::HeldKarp => self.solver.sequential_held_karp(),
+            SolutionStrategy::GeneticAlgorithm => self.solver.solve(),
+        };
 
         path.windows(2)
             .flat_map(|pair| {
@@ -68,14 +76,19 @@ impl Pathfinder {
 
 impl App for Pathfinder {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        egui::SidePanel::right("left_panel")
+        egui::SidePanel::right("right_panel")
             .min_width(250.)
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Solve");
-                        if ui.button("Solve Held-Karp").clicked() {
-                            self.solve();
+                    ui.label("Solve using:");
+                    ui.vertical(|ui| {
+                        if ui.button("Held-Karp").clicked() {
+                            self.solve(SolutionStrategy::HeldKarp);
+                        };
+                    });
+                    ui.vertical(|ui| {
+                        if ui.button("Genetic Algorithm").clicked() {
+                            self.solve(SolutionStrategy::GeneticAlgorithm);
                         };
                     });
                 });

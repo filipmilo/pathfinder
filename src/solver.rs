@@ -1,5 +1,41 @@
 use std::{cmp::min, collections::VecDeque};
 
+use rand::Rng;
+
+pub trait GeneticAlgorithm {
+    fn solve(&self) -> (u32, Vec<usize>);
+    fn crossover();
+    fn mutate();
+}
+
+struct Chromosome {
+    gnome: Vec<usize>,
+    fitness: u32,
+}
+
+impl Chromosome {
+    fn new(matrix: &[Vec<u32>]) -> Self {
+        let gnome = Self::random_gnome(matrix.len());
+
+        let fitness = Self::fitness(&gnome, matrix);
+
+        Self { gnome, fitness }
+    }
+
+    fn fitness(gnome: &[usize], matrix: &[Vec<u32>]) -> u32 {
+        gnome
+            .windows(2)
+            .map(|current| matrix[current[0]][current[1]])
+            .sum::<u32>()
+    }
+
+    fn random_gnome(len: usize) -> Vec<usize> {
+        let mut path: Vec<usize> = (0..len).map(|_| rand::rng().random_range(0..len)).collect();
+        path.push(path[0]);
+        path
+    }
+}
+
 pub struct Solver {
     matrix: Vec<Vec<u32>>,
 }
@@ -76,4 +112,46 @@ impl Solver {
 
         (result as u32, tour_rev.into_iter().collect())
     }
+}
+
+impl GeneticAlgorithm for Solver {
+    fn solve(&self) -> (u32, Vec<usize>) {
+        let mut gen_num = 1;
+        let gen_threshold = 5;
+
+        let mut population: Vec<Chromosome> = (1..self.matrix.len())
+            .map(|_| Chromosome::new(&self.matrix))
+            .collect();
+
+        let mut temperature = 10000;
+
+        while temperature > 1000 && gen_num < gen_threshold {
+            let mut new_population: Vec<Chromosome> = vec![];
+
+            for i in population.iter() {
+                loop {
+                    let new_chromosome = Chromosome::new(&self.matrix);
+
+                    if new_chromosome.fitness <= i.fitness
+                        || (2.7f64).powf(
+                            -((new_chromosome.fitness - i.fitness) as f64 / temperature as f64),
+                        ) > 0.5
+                    {
+                        new_population.push(new_chromosome);
+                        break;
+                    }
+                }
+            }
+
+            temperature = (90 * temperature) / 100;
+            population = new_population;
+            gen_num += 1;
+        }
+
+        (0, vec![])
+    }
+
+    fn mutate() {}
+
+    fn crossover() {}
 }

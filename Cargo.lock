@@ -2201,6 +2201,7 @@ dependencies = [
  "egui",
  "egui_graphs",
  "petgraph",
+ "rand 0.9.1",
 ]
 
 [[package]]
