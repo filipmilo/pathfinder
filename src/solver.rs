@@ -1,13 +1,12 @@
 use std::{cmp::min, collections::VecDeque};
 
-use rand::Rng;
+use rand::{Rng, seq::SliceRandom};
 
 pub trait GeneticAlgorithm {
     fn solve(&self) -> (u32, Vec<usize>);
-    fn crossover();
-    fn mutate();
 }
 
+#[derive(Debug)]
 struct Chromosome {
     gnome: Vec<usize>,
     fitness: u32,
@@ -26,13 +25,35 @@ impl Chromosome {
         gnome
             .windows(2)
             .map(|current| matrix[current[0]][current[1]])
-            .sum::<u32>()
+            .fold(0, |acc, curr| acc.saturating_add(curr))
     }
 
     fn random_gnome(len: usize) -> Vec<usize> {
-        let mut path: Vec<usize> = (0..len).map(|_| rand::rng().random_range(0..len)).collect();
-        path.push(path[0]);
-        path
+        let mut cities: Vec<usize> = (0..len).collect();
+        cities.shuffle(&mut rand::rng());
+        cities.push(cities[0]);
+        cities
+    }
+
+    fn mutate_offspring(&self, matrix: &[Vec<u32>]) -> Self {
+        let len = matrix.len();
+
+        let (r, r1): (usize, usize) = (|&len| loop {
+            let rr = rand::rng().random_range(1..len - 1);
+            let rr1 = rand::rng().random_range(1..len - 1);
+
+            if rr != rr1 {
+                return (rr, rr1);
+            }
+        })(&len);
+
+        let mut gnome = self.gnome.clone();
+
+        gnome.swap(r, r1);
+
+        let fitness = Self::fitness(&gnome, matrix);
+
+        Self { gnome, fitness }
     }
 }
 
@@ -117,7 +138,7 @@ impl Solver {
 impl GeneticAlgorithm for Solver {
     fn solve(&self) -> (u32, Vec<usize>) {
         let mut gen_num = 1;
-        let gen_threshold = 5;
+        let gen_threshold = 1000000;
 
         let mut population: Vec<Chromosome> = (1..self.matrix.len())
             .map(|_| Chromosome::new(&self.matrix))
@@ -125,12 +146,12 @@ impl GeneticAlgorithm for Solver {
 
         let mut temperature = 10000;
 
-        while temperature > 1000 && gen_num < gen_threshold {
+        while gen_num < gen_threshold {
             let mut new_population: Vec<Chromosome> = vec![];
 
             for i in population.iter() {
                 loop {
-                    let new_chromosome = Chromosome::new(&self.matrix);
+                    let new_chromosome = i.mutate_offspring(&self.matrix);
 
                     if new_chromosome.fitness <= i.fitness
                         || (2.7f64).powf(
@@ -144,14 +165,18 @@ impl GeneticAlgorithm for Solver {
             }
 
             temperature = (90 * temperature) / 100;
+
             population = new_population;
             gen_num += 1;
         }
 
-        (0, vec![])
+        let minimum = population.iter().min_by(|x, y| x.fitness.cmp(&y.fitness));
+
+        println!("{:?}", population);
+
+        match minimum {
+            Some(val) => (val.fitness, val.gnome.clone()),
+            None => (0, vec![]),
+        }
     }
-
-    fn mutate() {}
-
-    fn crossover() {}
 }
