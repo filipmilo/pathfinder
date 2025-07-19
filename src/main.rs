@@ -206,6 +206,7 @@ fn load_graph() -> GraphTuple {
     (graph, matrix, nodes)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     run_native(
         "Pathfinder",
@@ -213,4 +214,22 @@ fn main() {
         Box::new(|cc| Ok(Box::new(Pathfinder::new(cc)))),
     )
     .unwrap();
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+
+    let web_options = eframe::WebOptions::default();
+
+    wasm_bindgen_futures::spawn_local(async {
+        eframe::WebRunner::new()
+            .start(
+                "the_canvas_id", // hardcode it
+                web_options,
+                Box::new(|cc| Box::new(CustomDrawApp::new(cc))),
+            )
+            .await
+            .expect("failed to start eframe");
+    });
 }
