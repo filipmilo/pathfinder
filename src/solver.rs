@@ -1,21 +1,50 @@
-use std::{cmp::min, collections::VecDeque};
+use std::{
+    cmp::{Ordering, min},
+    collections::VecDeque,
+};
 
-use rand::{Rng, seq::SliceRandom};
+use rand::{
+    Rng,
+    distr::{Distribution, weighted::WeightedIndex},
+    seq::SliceRandom,
+};
 
 pub trait GeneticAlgorithm {
     fn solve(&self) -> (u32, Vec<usize>);
+    fn random_gnome(&self) -> Vec<usize>;
+    fn crossover(&self, parent_1: &Chromosome, parent_2: &Chromosome) -> (Chromosome, Chromosome);
+    fn mutate(&self, individual: &mut Chromosome);
+    fn select(&self, population: &[Chromosome]) -> (usize, usize);
 }
 
-#[derive(Debug)]
-struct Chromosome {
+#[derive(Debug, Clone)]
+pub struct Chromosome {
     gnome: Vec<usize>,
     fitness: u32,
 }
 
-impl Chromosome {
-    fn new(matrix: &[Vec<u32>]) -> Self {
-        let gnome = Self::random_gnome(matrix.len());
+impl Ord for Chromosome {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.fitness.cmp(&other.fitness)
+    }
+}
 
+impl PartialOrd for Chromosome {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Chromosome {
+    fn eq(&self, other: &Self) -> bool {
+        self.fitness == other.fitness
+    }
+}
+
+impl Eq for Chromosome {}
+
+impl Chromosome {
+    fn new(matrix: &[Vec<u32>], gnome: Vec<usize>) -> Self {
         let fitness = Self::fitness(&gnome, matrix);
 
         Self { gnome, fitness }
@@ -26,34 +55,6 @@ impl Chromosome {
             .windows(2)
             .map(|current| matrix[current[0]][current[1]])
             .fold(0, |acc, curr| acc.saturating_add(curr))
-    }
-
-    fn random_gnome(len: usize) -> Vec<usize> {
-        let mut cities: Vec<usize> = (0..len).collect();
-        cities.shuffle(&mut rand::rng());
-        cities.push(cities[0]);
-        cities
-    }
-
-    fn mutate_offspring(&self, matrix: &[Vec<u32>]) -> Self {
-        let len = matrix.len();
-
-        let (r, r1): (usize, usize) = (|&len| loop {
-            let rr = rand::rng().random_range(1..len - 1);
-            let rr1 = rand::rng().random_range(1..len - 1);
-
-            if rr != rr1 {
-                return (rr, rr1);
-            }
-        })(&len);
-
-        let mut gnome = self.gnome.clone();
-
-        gnome.swap(r, r1);
-
-        let fitness = Self::fitness(&gnome, matrix);
-
-        Self { gnome, fitness }
     }
 }
 
@@ -137,37 +138,49 @@ impl Solver {
 
 impl GeneticAlgorithm for Solver {
     fn solve(&self) -> (u32, Vec<usize>) {
-        let mut gen_num = 1;
         let gen_threshold = 1000000;
 
         let mut population: Vec<Chromosome> = (1..self.matrix.len())
-            .map(|_| Chromosome::new(&self.matrix))
+            .map(|_| Chromosome::new(&self.matrix, self.random_gnome()))
             .collect();
 
-        let mut temperature = 10000;
+        population.sort();
 
-        while gen_num < gen_threshold {
-            let mut new_population: Vec<Chromosome> = vec![];
+        let pop_len = population.len();
 
-            for i in population.iter() {
-                loop {
-                    let new_chromosome = i.mutate_offspring(&self.matrix);
+        for _ in 0..gen_threshold {
+            let mut new_population = population.clone();
+            let mut replaced = 1;
 
-                    if new_chromosome.fitness <= i.fitness
-                        || (2.7f64).powf(
-                            -((new_chromosome.fitness - i.fitness) as f64 / temperature as f64),
-                        ) > 0.5
-                    {
-                        new_population.push(new_chromosome);
-                        break;
-                    }
+            while replaced < pop_len {
+                let (p_1, p_2) = self.select(&population);
+
+                let (mut child_1, mut child_2) = if rand::rng().random::<f32>() < 0.7 {
+                    self.crossover(&population[p_1], &population[p_2])
+                } else {
+                    (population[p_1].clone(), population[p_2].clone())
+                };
+
+                if rand::rng().random::<f32>() < 0.3 {
+                    self.mutate(&mut child_1);
+                }
+
+                if rand::rng().random::<f32>() < 0.3 {
+                    self.mutate(&mut child_2);
+                }
+
+                new_population[replaced] = child_1;
+                replaced += 1;
+
+                if replaced < pop_len {
+                    new_population[replaced] = child_2;
+                    replaced += 1;
                 }
             }
 
-            temperature = (90 * temperature) / 100;
-
             population = new_population;
-            gen_num += 1;
+
+            population.sort();
         }
 
         let minimum = population.iter().min_by(|x, y| x.fitness.cmp(&y.fitness));
@@ -178,5 +191,98 @@ impl GeneticAlgorithm for Solver {
             Some(val) => (val.fitness, val.gnome.clone()),
             None => (0, vec![]),
         }
+    }
+
+    fn random_gnome(&self) -> Vec<usize> {
+        let len = self.matrix.len();
+        let mut path: Vec<usize> = vec![0];
+
+        let mut cities: Vec<usize> = (1..len).collect();
+        cities.shuffle(&mut rand::rng());
+
+        path.append(&mut cities);
+        path.push(0);
+        path
+    }
+
+    fn select(&self, population: &[Chromosome]) -> (usize, usize) {
+        let weights: Vec<u32> = population.iter().map(|ind| ind.fitness).collect();
+        let dist = WeightedIndex::new(&weights).expect("Invalid weights.");
+        let mut rng = rand::rng();
+
+        (dist.sample(&mut rng), dist.sample(&mut rng))
+    }
+
+    fn crossover(&self, parent_1: &Chromosome, parent_2: &Chromosome) -> (Chromosome, Chromosome) {
+        let mut cities: Vec<usize> = (1..self.matrix.len()).collect();
+        cities.shuffle(&mut rand::rng());
+
+        let chosen = cities[..3].to_vec();
+
+        let order_1 = parent_1
+            .gnome
+            .iter()
+            .filter_map(|city| {
+                if chosen.contains(city) {
+                    Some(*city)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<usize>>();
+
+        let order_2 = parent_2
+            .gnome
+            .iter()
+            .filter_map(|city| {
+                if chosen.contains(city) {
+                    Some(*city)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<usize>>();
+
+        let (child_1, child_2) = order_1.iter().zip(order_2).fold(
+            (parent_1.gnome.clone(), parent_2.gnome.clone()),
+            |mut acc, curr| {
+                if let Some(found) = acc.0.iter_mut().find(|city| *city == curr.0) {
+                    *found = curr.1
+                }
+
+                if let Some(found) = acc.1.iter_mut().find(|city| **city == curr.1) {
+                    *found = *curr.0
+                }
+
+                acc
+            },
+        );
+
+        (
+            Chromosome::new(&self.matrix, child_1),
+            Chromosome::new(&self.matrix, child_2),
+        )
+    }
+
+    fn mutate(&self, individual: &mut Chromosome) {
+        let len = self.matrix.len();
+
+        let (r, r1): (usize, usize) = (|&len| loop {
+            let rr = rand::rng().random_range(1..len);
+            let rr1 = rand::rng().random_range(1..len);
+
+            if rr != rr1 {
+                return (rr, rr1);
+            }
+        })(&len);
+
+        let mut gnome = individual.gnome.clone();
+
+        gnome.swap(r, r1);
+
+        let fitness = Chromosome::fitness(&gnome, &self.matrix);
+
+        individual.gnome = gnome;
+        individual.fitness = fitness;
     }
 }
