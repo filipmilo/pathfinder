@@ -6,7 +6,7 @@ use egui_graphs::{
     Graph, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation, SettingsStyle,
 };
 use node::Node;
-use petgraph::Directed;
+use petgraph::Undirected;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use solver::{GeneticAlgorithm, Solver};
@@ -15,7 +15,7 @@ mod node;
 mod solver;
 
 type GraphTuple = (
-    StableGraph<String, ()>,
+    StableGraph<String, (), Undirected>,
     Vec<Vec<u32>>,
     HashMap<NodeIndex, Node>,
 );
@@ -26,7 +26,7 @@ enum SolutionStrategy {
 }
 
 pub struct Pathfinder {
-    g: Graph<String, (), Directed>,
+    g: Graph<String, (), Undirected>,
     nodes: HashMap<NodeIndex, Node>,
     solver: Solver,
 }
@@ -55,19 +55,33 @@ impl Pathfinder {
     }
 
     fn solve(&mut self, strategy: SolutionStrategy) {
-        let (_cost, path) = match strategy {
+        let (cost, path) = match strategy {
             SolutionStrategy::HeldKarp => self.solver.sequential_held_karp(),
             SolutionStrategy::GeneticAlgorithm => self.solver.solve(),
         };
 
-        path.windows(2)
-            .flat_map(|pair| {
+        println!("COST: {}", cost);
+
+        let edges: Vec<usize> = path
+            .windows(2)
+            .filter_map(|pair| {
                 if let Some(val) = self.nodes.get(&NodeIndex::new(pair[0])) {
-                    val.get_edge_idxs(&[pair[1]])
+                    val.neighbours.iter().find_map(|n| {
+                        if n.0.index() == pair[1] {
+                            Some(n.2.unwrap().index())
+                        } else {
+                            None
+                        }
+                    })
                 } else {
-                    vec![]
+                    None
                 }
             })
+            .collect();
+
+        self.nodes
+            .values()
+            .flat_map(|node| node.get_edge_idxs(&edges))
             .for_each(|edge| {
                 let _ = self.g.remove_edge(edge);
             });
@@ -142,7 +156,7 @@ fn load_graph() -> GraphTuple {
         })
         .collect::<Vec<(String, String, u32)>>();
 
-    let mut graph: StableGraph<String, ()> = StableGraph::new();
+    let mut graph: StableGraph<String, (), Undirected> = StableGraph::default();
 
     let ids = lines
         .iter()
@@ -164,11 +178,13 @@ fn load_graph() -> GraphTuple {
             let curr_id = *node_map.get(&curr.0).unwrap();
             let end_id = *node_map.get(&curr.1).unwrap();
 
-            acc.entry(end_id).or_insert(Node {
-                id: end_id,
-                name: curr.1.clone(),
-                neighbours: vec![],
-            });
+            acc.entry(end_id)
+                .and_modify(|node| node.neighbours.push((curr_id, curr.2, None)))
+                .or_insert(Node {
+                    id: end_id,
+                    name: curr.1.clone(),
+                    neighbours: vec![(curr_id, curr.2, None)],
+                });
 
             acc.entry(curr_id)
                 .and_modify(|node| node.neighbours.push((end_id, curr.2, None)))
@@ -183,7 +199,7 @@ fn load_graph() -> GraphTuple {
     );
 
     let len = ids.len();
-    let mut matrix: Vec<Vec<u32>> = (0..len).map(|_| vec![u32::MAX; len]).collect();
+    let mut matrix: Vec<Vec<u32>> = (0..len).map(|_| vec![0; len]).collect();
 
     for (i, column) in matrix.iter_mut().enumerate() {
         for (j, val) in column.iter_mut().enumerate() {
@@ -193,7 +209,10 @@ fn load_graph() -> GraphTuple {
 
             if let Some(begin) = nodes.get_mut(&NodeIndex::new(i)) {
                 if let Some(found) = begin.neighbours.iter_mut().find(|n| n.0.index() == j) {
-                    let edge_idx = graph.add_edge(begin.id, found.0, ());
+                    let edge_idx = match graph.find_edge_undirected(begin.id, found.0) {
+                        Some(edge) => edge.0,
+                        None => graph.add_edge(begin.id, found.0, ()),
+                    };
 
                     found.2 = Some(edge_idx);
 

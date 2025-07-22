@@ -12,7 +12,7 @@ impl Node {
         self.neighbours
             .iter()
             .filter_map(|edge| {
-                if !filter_out.contains(&edge.0.index()) {
+                if !filter_out.contains(&edge.2.unwrap().index()) {
                     Some(edge.2.unwrap())
                 } else {
                     None

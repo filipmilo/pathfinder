@@ -25,13 +25,13 @@ pub struct Chromosome {
 
 impl Ord for Chromosome {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.fitness.cmp(&other.fitness)
+        other.fitness.cmp(&self.fitness)
     }
 }
 
 impl PartialOrd for Chromosome {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        Some(other.cmp(self))
     }
 }
 
@@ -54,7 +54,7 @@ impl Chromosome {
         gnome
             .windows(2)
             .map(|current| matrix[current[0]][current[1]])
-            .fold(0, |acc, curr| acc.saturating_add(curr))
+            .sum()
     }
 }
 
@@ -140,17 +140,19 @@ impl GeneticAlgorithm for Solver {
     fn solve(&self) -> (u32, Vec<usize>) {
         let gen_threshold = 1000000;
 
-        let mut population: Vec<Chromosome> = (1..self.matrix.len())
+        let mut population: Vec<Chromosome> = (1..20)
             .map(|_| Chromosome::new(&self.matrix, self.random_gnome()))
             .collect();
 
         population.sort();
 
+        println!("{:?}", population);
+
         let pop_len = population.len();
 
         for _ in 0..gen_threshold {
             let mut new_population = population.clone();
-            let mut replaced = 1;
+            let mut replaced = 3;
 
             while replaced < pop_len {
                 let (p_1, p_2) = self.select(&population);
@@ -207,7 +209,13 @@ impl GeneticAlgorithm for Solver {
 
     fn select(&self, population: &[Chromosome]) -> (usize, usize) {
         let weights: Vec<u32> = population.iter().map(|ind| ind.fitness).collect();
-        let dist = WeightedIndex::new(&weights).expect("Invalid weights.");
+        let inverted: Vec<f64> = weights.iter().map(|&w| 1.0 / (w as f64 + 1.0)).collect();
+        let sum: f64 = inverted.iter().sum();
+        let normalized: Vec<u64> = inverted
+            .iter()
+            .map(|&inv| ((inv / sum) * 1000.0).round() as u64)
+            .collect();
+        let dist = WeightedIndex::new(&normalized).unwrap();
         let mut rng = rand::rng();
 
         (dist.sample(&mut rng), dist.sample(&mut rng))
