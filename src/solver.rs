@@ -146,7 +146,7 @@ impl GeneticAlgorithm for Solver {
 
         population.sort();
 
-        println!("{:?}", population);
+        println!("{population:?}");
 
         let pop_len = population.len();
 
@@ -187,7 +187,7 @@ impl GeneticAlgorithm for Solver {
 
         let minimum = population.iter().min_by(|x, y| x.fitness.cmp(&y.fitness));
 
-        println!("{:?}", population);
+        println!("{population:?}");
 
         match minimum {
             Some(val) => (val.fitness, val.gnome.clone()),

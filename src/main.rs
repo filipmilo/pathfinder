@@ -60,7 +60,7 @@ impl Pathfinder {
             SolutionStrategy::GeneticAlgorithm => self.solver.solve(),
         };
 
-        println!("COST: {}", cost);
+        println!("COST: {cost}");
 
         let edges: Vec<usize> = path
             .windows(2)
