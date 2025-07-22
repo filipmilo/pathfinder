@@ -142,7 +142,7 @@ impl App for Pathfinder {
 }
 
 fn load_graph() -> GraphTuple {
-    let lines = fs::read_to_string("data/input.txt")
+    let lines = fs::read_to_string("data/hundred.txt")
         .expect("Oops, could not open file.")
         .lines()
         .map(|line| {
