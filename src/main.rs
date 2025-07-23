@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use eframe::{App, CreationContext, NativeOptions, run_native};
+use egui::TextEdit;
 use egui_graphs::{
     Graph, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation, SettingsStyle,
 };
@@ -27,6 +28,7 @@ enum SolutionStrategy {
 
 pub struct Pathfinder {
     g: Graph<String, (), Undirected>,
+    final_cost: String,
     nodes: HashMap<NodeIndex, Node>,
     solver: Solver,
 }
@@ -49,6 +51,7 @@ impl Pathfinder {
 
         Self {
             g,
+            final_cost: "".to_string(),
             nodes,
             solver: Solver::new(matrix),
         }
@@ -61,6 +64,8 @@ impl Pathfinder {
         };
 
         println!("COST: {cost}");
+
+        self.final_cost = cost.to_string();
 
         let edges: Vec<usize> = path
             .windows(2)
@@ -105,6 +110,10 @@ impl App for Pathfinder {
                             self.solve(SolutionStrategy::GeneticAlgorithm);
                         };
                     });
+
+                    if !self.final_cost.is_empty() {
+                        ui.label(format!("COST: {}", self.final_cost));
+                    }
                 });
             });
 
@@ -142,7 +151,7 @@ impl App for Pathfinder {
 }
 
 fn load_graph() -> GraphTuple {
-    let lines = fs::read_to_string("data/hundred.txt")
+    let lines = fs::read_to_string("data/basic.txt")
         .expect("Oops, could not open file.")
         .lines()
         .map(|line| {
