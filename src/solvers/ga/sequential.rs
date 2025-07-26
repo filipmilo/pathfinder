@@ -22,7 +22,7 @@ impl GeneticAlgorithm for SequentialGASolver {
     fn solve(&self) -> (u32, Vec<usize>) {
         let gen_threshold = 100000;
 
-        let mut population: Vec<Chromosome> = (1..1000)
+        let mut population: Vec<Chromosome> = (1..100)
             .map(|_| Chromosome::new(&self.matrix, self.random_gnome()))
             .collect();
 
