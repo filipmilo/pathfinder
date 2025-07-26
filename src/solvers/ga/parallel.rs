@@ -24,7 +24,7 @@ impl GeneticAlgorithm for ParallelGASolver {
         let gen_threshold = 100000;
         let elitism = 3;
 
-        let mut population: Vec<Chromosome> = (0..100)
+        let mut population: Vec<Chromosome> = (0..1000)
             .into_par_iter()
             .map(|_| Chromosome::new(&self.matrix, self.random_gnome()))
             .collect();
