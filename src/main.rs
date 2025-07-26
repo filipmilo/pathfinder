@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::time::Instant;
 
 use eframe::{App, CreationContext, NativeOptions, run_native};
 use egui_graphs::{
@@ -10,7 +11,8 @@ use petgraph::Undirected;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use solvers::dp::DPSolver;
-use solvers::ga::ga::GeneticAlgorithm;
+use solvers::ga::ga_trait::GeneticAlgorithm;
+use solvers::ga::parallel::ParallelGASolver;
 use solvers::ga::sequential::SequentialGASolver;
 
 mod node;
@@ -34,6 +36,7 @@ pub struct Pathfinder {
     nodes: HashMap<NodeIndex, Node>,
     dp_solver: DPSolver,
     ga_solver: SequentialGASolver,
+    parallel_solver: ParallelGASolver,
 }
 
 impl Pathfinder {
@@ -57,17 +60,21 @@ impl Pathfinder {
             final_cost: "".to_string(),
             nodes,
             dp_solver: DPSolver::new(matrix.clone()),
-            ga_solver: SequentialGASolver::new(matrix),
+            ga_solver: SequentialGASolver::new(matrix.clone()),
+            parallel_solver: ParallelGASolver::new(matrix),
         }
     }
 
     fn solve(&mut self, strategy: SolutionStrategy) {
+        let now = Instant::now();
+
         let (cost, path) = match strategy {
             SolutionStrategy::HeldKarp => self.dp_solver.solve(),
             SolutionStrategy::GeneticAlgorithm => self.ga_solver.solve(),
-            SolutionStrategy::GeneticAlgorithmParallel => todo!(),
+            SolutionStrategy::GeneticAlgorithmParallel => self.parallel_solver.solve(),
         };
 
+        println!("ELAPSED: {}ms", now.elapsed().as_millis());
         println!("COST: {cost}");
 
         self.final_cost = cost.to_string();
@@ -105,14 +112,22 @@ impl App for Pathfinder {
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
                     ui.label("Solve using:");
+
                     ui.vertical(|ui| {
                         if ui.button("Held-Karp").clicked() {
                             self.solve(SolutionStrategy::HeldKarp);
                         };
                     });
+
                     ui.vertical(|ui| {
                         if ui.button("Genetic Algorithm").clicked() {
                             self.solve(SolutionStrategy::GeneticAlgorithm);
+                        };
+                    });
+
+                    ui.vertical(|ui| {
+                        if ui.button("Genetic Algorithm Parallel").clicked() {
+                            self.solve(SolutionStrategy::GeneticAlgorithmParallel);
                         };
                     });
 
@@ -156,7 +171,7 @@ impl App for Pathfinder {
 }
 
 fn load_graph() -> GraphTuple {
-    let lines = fs::read_to_string("data/basic.txt")
+    let lines = fs::read_to_string("data/hundred.txt")
         .expect("Oops, could not open file.")
         .lines()
         .map(|line| {

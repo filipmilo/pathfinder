@@ -1,3 +1,4 @@
 mod chromosome;
-pub mod ga;
+pub mod ga_trait;
+pub mod parallel;
 pub mod sequential;

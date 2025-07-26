@@ -3,26 +3,29 @@ use rand::{
     distr::{Distribution, weighted::WeightedIndex},
     seq::SliceRandom,
 };
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::solvers::ga::chromosome::Chromosome;
 
 use super::ga_trait::GeneticAlgorithm;
 
-pub struct SequentialGASolver {
+pub struct ParallelGASolver {
     matrix: Vec<Vec<u32>>,
 }
 
-impl SequentialGASolver {
+impl ParallelGASolver {
     pub fn new(matrix: Vec<Vec<u32>>) -> Self {
         Self { matrix }
     }
 }
 
-impl GeneticAlgorithm for SequentialGASolver {
+impl GeneticAlgorithm for ParallelGASolver {
     fn solve(&self) -> (u32, Vec<usize>) {
         let gen_threshold = 100000;
+        let elitism = 3;
 
-        let mut population: Vec<Chromosome> = (1..1000)
+        let mut population: Vec<Chromosome> = (0..1000)
+            .into_par_iter()
             .map(|_| Chromosome::new(&self.matrix, self.random_gnome()))
             .collect();
 
@@ -31,36 +34,34 @@ impl GeneticAlgorithm for SequentialGASolver {
         let pop_len = population.len();
 
         for _ in 0..gen_threshold {
-            let mut new_population = population.clone();
-            let mut replaced = 3;
+            let new_children: Vec<Chromosome> = (elitism..pop_len)
+                .into_par_iter()
+                .map(|_| {
+                    let (p_1, p_2) = self.select(&population);
 
-            while replaced < pop_len {
-                let (p_1, p_2) = self.select(&population);
+                    let (mut child_1, mut child_2) = if rand::rng().random::<f32>() < 0.7 {
+                        self.crossover(&population[p_1], &population[p_2])
+                    } else {
+                        (population[p_1].clone(), population[p_2].clone())
+                    };
 
-                let (mut child_1, mut child_2) = if rand::rng().random::<f32>() < 0.7 {
-                    self.crossover(&population[p_1], &population[p_2])
-                } else {
-                    (population[p_1].clone(), population[p_2].clone())
-                };
+                    if rand::rng().random::<f32>() < 0.3 {
+                        self.mutate(&mut child_1);
+                    }
 
-                if rand::rng().random::<f32>() < 0.3 {
-                    self.mutate(&mut child_1);
-                }
+                    if rand::rng().random::<f32>() < 0.3 {
+                        self.mutate(&mut child_2);
+                    }
 
-                if rand::rng().random::<f32>() < 0.3 {
-                    self.mutate(&mut child_2);
-                }
+                    if child_1.fitness < child_2.fitness {
+                        child_1
+                    } else {
+                        child_2
+                    }
+                })
+                .collect();
 
-                new_population[replaced] = child_1;
-                replaced += 1;
-
-                if replaced < pop_len {
-                    new_population[replaced] = child_2;
-                    replaced += 1;
-                }
-            }
-
-            population = new_population;
+            population.splice(elitism.., new_children);
 
             population.sort();
         }
