@@ -3,12 +3,12 @@
 <!--toc:start-->
 
 - [European Cities Tour Planner (Traveling Salesman Problem)](#european-cities-tour-planner-traveling-salesman-problem)
-  - [📌 Project Description](#📌-project-description)
-  - [📥 Input Data](#📥-input-data)
+  - [Project Description](#📌-project-description)
+  - [Input Data](#input-data)
   - [Instructions](#instructions)
   - [Results and comparisons](#results-and-comparisons)
-    - [🧪 Test Results](#🧪-test-results)
-    - [📊 Analysis](#📊-analysis)
+    - [Test Results](#test-results)
+    - [Analysis](#analysis)
       - [Dynamic Programming](#dynamic-programming)
       - [Genetic Algorithm (GA)](#genetic-algorithm-ga)
       - [Parallel Genetic Algorithm (GAP)](#parallel-genetic-algorithm-gap)
@@ -16,7 +16,7 @@
   - [Leftover TODO's](#leftover-todos)
   <!--toc:end-->
 
-## 📌 Project Description
+## Project Description
 
 In the TSP the input is a list of cities and the cost of traveling between each city.
 The goal of the salesman is to determine the **shortest possible route**.
@@ -33,7 +33,7 @@ Rayon was used as concurrency since it has a thread pool and allows us to create
 
 ---
 
-## 📥 Input Data
+## Input Data
 
 The list of cities and the distances between them (in kilometers) are provided in a `.txt` file that accompanies this project.
 
@@ -51,7 +51,7 @@ Run the project with:
 
 Each algorithm was tested on 3 problem sizes: 4, 19, and 100 cities. For the 100-city case, the GA and GAP were configured with different population sizes to evaluate the scalability and effectiveness of parallelism.
 
-### 🧪 Test Results
+### Test Results
 
 | Cities | Algorithm | Configuration                  | Time      | Outcome                 |
 | ------ | --------- | ------------------------------ | --------- | ----------------------- |
@@ -67,11 +67,11 @@ Each algorithm was tested on 3 problem sizes: 4, 19, and 100 cities. For the 100
 
 ---
 
-### 📊 Analysis
+### Analysis
 
 #### Dynamic Programming
 
-- **Fast and optimal** for small inputs (≤ 19 cities).
+- **Fast and optimal** for small-medium inputs (≤ 19 cities).
 - **Out of memory** at 100 cities — factorial complexity becomes unmanageable.
 
 #### Genetic Algorithm (GA)
@@ -88,7 +88,7 @@ Each algorithm was tested on 3 problem sizes: 4, 19, and 100 cities. For the 100
 
 ### Conclusion
 
-- Use **brute-force** only for very small TSP instances (N ≤ 19).
+- Use **dynamic programming** only for small-medium TSP instances (N ≤ 19).
 - Use **GA** for medium-sized problems where a near-optimal solution is acceptable.
 - Use **GAP** when dealing with **large populations or larger problem spaces** — this is where parallelism begins to outperform the sequential version.
 
