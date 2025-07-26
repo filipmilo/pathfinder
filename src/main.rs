@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use eframe::{App, CreationContext, NativeOptions, run_native};
-use egui::TextEdit;
 use egui_graphs::{
     Graph, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation, SettingsStyle,
 };
@@ -10,10 +9,12 @@ use node::Node;
 use petgraph::Undirected;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
-use solver::{GeneticAlgorithm, Solver};
+use solvers::dp::DPSolver;
+use solvers::ga::ga::GeneticAlgorithm;
+use solvers::ga::sequential::SequentialGASolver;
 
 mod node;
-mod solver;
+mod solvers;
 
 type GraphTuple = (
     StableGraph<String, (), Undirected>,
@@ -24,13 +25,15 @@ type GraphTuple = (
 enum SolutionStrategy {
     HeldKarp,
     GeneticAlgorithm,
+    GeneticAlgorithmParallel,
 }
 
 pub struct Pathfinder {
     g: Graph<String, (), Undirected>,
     final_cost: String,
     nodes: HashMap<NodeIndex, Node>,
-    solver: Solver,
+    dp_solver: DPSolver,
+    ga_solver: SequentialGASolver,
 }
 
 impl Pathfinder {
@@ -53,14 +56,16 @@ impl Pathfinder {
             g,
             final_cost: "".to_string(),
             nodes,
-            solver: Solver::new(matrix),
+            dp_solver: DPSolver::new(matrix.clone()),
+            ga_solver: SequentialGASolver::new(matrix),
         }
     }
 
     fn solve(&mut self, strategy: SolutionStrategy) {
         let (cost, path) = match strategy {
-            SolutionStrategy::HeldKarp => self.solver.sequential_held_karp(),
-            SolutionStrategy::GeneticAlgorithm => self.solver.solve(),
+            SolutionStrategy::HeldKarp => self.dp_solver.solve(),
+            SolutionStrategy::GeneticAlgorithm => self.ga_solver.solve(),
+            SolutionStrategy::GeneticAlgorithmParallel => todo!(),
         };
 
         println!("COST: {cost}");
