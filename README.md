@@ -1,5 +1,21 @@
 # European Cities Tour Planner (Traveling Salesman Problem)
 
+<!--toc:start-->
+
+- [European Cities Tour Planner (Traveling Salesman Problem)](#european-cities-tour-planner-traveling-salesman-problem)
+  - [📌 Project Description](#📌-project-description)
+  - [📥 Input Data](#📥-input-data)
+  - [Instructions](#instructions)
+  - [Results and comparisons](#results-and-comparisons)
+    - [🧪 Test Results](#🧪-test-results)
+    - [📊 Analysis](#📊-analysis)
+      - [Dynamic Programming](#dynamic-programming)
+      - [Genetic Algorithm (GA)](#genetic-algorithm-ga)
+      - [Parallel Genetic Algorithm (GAP)](#parallel-genetic-algorithm-gap)
+    - [Conclusion](#conclusion)
+  - [Leftover TODO's](#leftover-todos)
+  <!--toc:end-->
+
 ## 📌 Project Description
 
 In the TSP the input is a list of cities and the cost of traveling between each city.
@@ -31,7 +47,7 @@ Run the project with:
 
 ---
 
-## Results and comparisons
+## Results and Comparisons
 
 Each algorithm was tested on 3 problem sizes: 4, 19, and 100 cities. For the 100-city case, the GA and GAP were configured with different population sizes to evaluate the scalability and effectiveness of parallelism.
 
@@ -76,7 +92,7 @@ Each algorithm was tested on 3 problem sizes: 4, 19, and 100 cities. For the 100
 - Use **GA** for medium-sized problems where a near-optimal solution is acceptable.
 - Use **GAP** when dealing with **large populations or larger problem spaces** — this is where parallelism begins to outperform the sequential version.
 
-- ***
+---
 
 ## Leftover TODO's
 
